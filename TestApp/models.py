@@ -13,14 +13,14 @@ ORDER_STATUSES = (
 )
 
 class Printer(models.Model):
-    printer_mng = models.Manager()
+    objects = models.Manager()
     name = models.CharField(null=False, max_length=100)
     api_key = models.CharField(null=False, max_length=100)
     check_type = models.CharField(max_length=10, choices=CHECK_TYPES)
     point_id = models.IntegerField(null=False)
     
 class Check(models.Model):
-    check_mng = models.Manager()
+    objects = models.Manager()
     printer_id = models.ForeignKey(Printer)
     type = models.CharField(max_length=10, choices=CHECK_TYPES)
     order = JSONField()
