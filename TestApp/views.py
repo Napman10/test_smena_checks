@@ -11,6 +11,7 @@ def take_available_checks(request):
     return response
 
 def take_pdf(request):
+    api_key = request.GET.get('api_key','')
     check_id = request.GET.get('check_id', '')
     response = services.take_pdf(api_key, check_id)
     return response
