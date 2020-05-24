@@ -1,6 +1,7 @@
 import json
 import django_rq
 from .models import Printer, Check
+
 def create_checks(order):
     #получаем заказ
     order = json.loads(order)
@@ -11,12 +12,14 @@ def create_checks(order):
     #дополняем новыми чеками
     new_check_list = list()
     for p in local_printers:
-        new_check = Check(printer_id=p, type=p.check_type, order=order)
+        new_check = Check(printer_id=p, ctype=p.check_ctype, order=order)
         new_check_list.append(new_check)
     check_list = Check.objects.bulk_create(new_check_list)
     #добавляем в очередь чеки
+    #делать пока примерно
     for c in check_list:
-        django_rq.enqueue('???')
+        django_rq.enqueue(pdf_worker, c)
+    return check_list
         
 def take_available_checks(api_key):
     #получаем принтеры по ключу
@@ -37,10 +40,10 @@ def pdf_worker(check_id):
     #получить чек
     check = Check.objects.get(pk=check_id)
     #обработать для двух разных случаев
-    if check.type == "client":
+    if check.ctype == "client":
         #инструкции
         pass
-    if check.type == "kitchen":
+    if check.ctype == "kitchen":
         #инструкции
         pass
     #доделать обработку и сохранение
