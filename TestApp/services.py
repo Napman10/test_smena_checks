@@ -7,8 +7,6 @@ def create_checks(order):
     order = json.loads(order)
     #получаем принтеры на точке
     local_printers = Printer.objects.filter(point_id=order['point_id'])
-    #получаем чеки принтеров
-    checks = Check.objects.filter(printer_id__in=local_printers.values('pk'), order=order)
     #дополняем новыми чеками
     new_check_list = list()
     for p in local_printers:
@@ -18,6 +16,7 @@ def create_checks(order):
     #добавляем в очередь чеки
     #делать пока примерно
     for c in check_list:
+        #c - id чека
         django_rq.enqueue(pdf_worker, c)
     return check_list
         
