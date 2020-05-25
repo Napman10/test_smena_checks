@@ -35,6 +35,7 @@ def take_pdf(api_key, check_id):
     
 def pdf_worker(check_id):
     #получить чек
+    convert_html = None
     check = Check.objects.get(pk=check_id)
     #обработать для двух разных случаев
     if check.ctype == "client":
@@ -45,7 +46,7 @@ def pdf_worker(check_id):
         pass
     url = 'http://127.0.0.1:80/'
     data = {
-        'contents': open('/file/to/convert.html').read().encode('base64'), #здесь должен быть пережитый обработку html
+        'contents': convert_html.read().encode('base64'), #здесь должен быть пережитый обработку html
     }
     headers = {
         'Content-Type': 'application/json',    # This is important ===> не менять
