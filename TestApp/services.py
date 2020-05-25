@@ -5,6 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from wsgiref.util import FileWrapper
 import requests
 import base64
+from django.template.loader import render_to_string
 
 def create_checks(order):
     order = json.loads(order)
@@ -59,12 +60,11 @@ def pdf_worker(check_id):
     check = Check.objects.get(pk=check_id)
     #обработать для двух разных случаев
     if check.ctype == "client":
-        #инструкции
-        pass
+        context = dict()
+        page = render_to_string("client_check.html", context)
     if check.ctype == "kitchen":
-        #инструкции
-        pass
-    #после этого convert_html стал строкой
+        context = dict()
+        page = render_to_string("kitchen_check.html", context)
     b = page.encode("utf-8")
     converted_html = base64.b64encode(b)
     url = 'http://127.0.0.1:80/'
