@@ -1,39 +1,37 @@
 import json
 import django_rq
 from .models import Printer, Check
+from django.http import HttpResponse
+from django.core.servers.basehttp import FileWrapper
+
 
 def create_checks(order):
-    #получаем заказ
     order = json.loads(order)
-    #получаем принтеры на точке
     local_printers = Printer.objects.filter(point_id=order['point_id'])
-    #дополняем новыми чеками
-    new_check_list = list()
     for p in local_printers:
         new_check = Check(printer_id=p, ctype=p.check_ctype, order=order)
-        new_check_list.append(new_check)
-    check_list = Check.objects.bulk_create(new_check_list)
-    #добавляем в очередь чеки
-    #делать пока примерно
+        new_check.save()
+    check_list = Check.objects.all()
     for c in check_list:
-        #c - id чека
         django_rq.enqueue(pdf_worker, c)
     return check_list
         
 def take_available_checks(api_key):
     #получаем принтеры по ключу
-    printer_list = Printer.objects.filter(api_key=api_key)
+    printer_id = Printer.objects.filter(api_key=api_key)[0].id
     #получаем чеки
-    ab_checks = Check.objects.filter(printer_id=printer_list.values('id'), status='rendered')
+    ab_checks = Check.objects.filter(printer_id=printer_id, status='rendered')
     return ab_checks
     
 def take_pdf(api_key, check_id):
     #принтеры по ключу
-    printer_list = Printer.objects.filter(api_key=api_key)
-    #чек
-    check = Check.objects.get(printer_id=printer_list.values('id'),pk=check_id)
-    #доделать
+    printer_id = Printer.objects.filter(api_key=api_key)[0].id
+    check = Check.objects.get(printer_id=printer_id, pk=check_id)
     pdf = open(check.pdf_file.path, 'rb')
+    content_type = 'application/pdf'
+    response = HttpResponse(FileWrapper(pdf, content_type=content_type))
+    response['Content-Disposition'] = 'attachment; filename=%s' % check.pdf_file.name
+    return response
     
 def pdf_worker(check_id):
     #получить чек
