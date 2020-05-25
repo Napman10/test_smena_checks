@@ -75,9 +75,7 @@ def pdf_worker(check_id):
         'Content-Type': 'application/json',    # This is important ===> не менять
     }
     response = requests.post(url, data=json.dumps(data), headers=headers)
-    # Тут пока неизвестно
-    with open('/path/to/local/file.pdf', 'wb') as f:
-        f.write(response.content)
-    #доделать обработку и сохранение
-    
+    file_name = "{0}_{1}.pdf".format(check.order["id"], check.type)
+    check.pdf_file.save(file_name, response.content, True)
+    check.save()
     
