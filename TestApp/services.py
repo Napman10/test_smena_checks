@@ -27,7 +27,7 @@ def create_checks(order):
             return JsonResponse({"ok": "Чеки успешно созданы"}, status=200)
     return JsonResponse({"error": "Неизвестная ошибка"}, status=500)
         
-def take_available_checks(api_key):
+def rendered_checks(api_key):
     try:
         printer_id = Printer.objects.filter(api_key=api_key)[0].id
         ab_checks = Check.objects.filter(printer_id=printer_id, status='rendered')

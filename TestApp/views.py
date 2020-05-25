@@ -5,9 +5,9 @@ def create_checks(request):
     response = services.create_checks(request)
     return response
 
-def take_available_checks(request):
+def rendered_checks(request):
     api_key = request.GET.get('api_key', '')
-    response = services.take_available_checks(api_key)
+    response = services.rendered_checks(api_key)
     return response
 
 def take_pdf(request):
