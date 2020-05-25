@@ -1,5 +1,5 @@
 from django.shortcuts import render
-import services
+from . import services
 # Create your views here.
 def create_checks(request):
     response = services.create_checks(request)
