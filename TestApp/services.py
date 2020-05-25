@@ -3,6 +3,7 @@ import django_rq
 from .models import Printer, Check
 from django.http import HttpResponse
 from wsgiref.util import FileWrapper
+import requests
 
 def create_checks(order):
     order = json.loads(order)
@@ -42,15 +43,15 @@ def pdf_worker(check_id):
     if check.ctype == "kitchen":
         #инструкции
         pass
-    url = 'http://<docker_host>:<port>/'
+    url = 'http://127.0.0.1:80/'
     data = {
-        'contents': open('/file/to/convert.html').read().encode('base64'),
+        'contents': open('/file/to/convert.html').read().encode('base64'), #здесь должен быть пережитый обработку html
     }
     headers = {
-        'Content-Type': 'application/json',    # This is important
+        'Content-Type': 'application/json',    # This is important ===> не менять
     }
     response = requests.post(url, data=json.dumps(data), headers=headers)
-    # Save the response contents to a file
+    # Тут пока неизвестно
     with open('/path/to/local/file.pdf', 'wb') as f:
         f.write(response.content)
     #доделать обработку и сохранение
