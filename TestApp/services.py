@@ -1,7 +1,7 @@
 import json
 import django_rq
 from .models import Printer, Check
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from wsgiref.util import FileWrapper
 import requests
 import base64
@@ -9,13 +9,29 @@ import base64
 def create_checks(order):
     order = json.loads(order)
     local_printers = Printer.objects.filter(point_id=order['point_id'])
-    for p in local_printers:
-        new_check = Check(printer_id=p, ctype=p.check_ctype, order=order)
-        new_check.save()
-    check_list = Check.objects.all()
-    for c in check_list:
-        django_rq.enqueue(pdf_worker, c)
-    return check_list
+
+    if not local_printers:
+        return JsonResponse({"error":"Для данной точки не настроено ни одного принтера"}, status=400)
+
+    checks = Check.objects.filter(printer_id__in=local_printers.values('pk'), order=order)
+    printers = local_printers.exclude(pk__in=checks.values('printer_id__pk'))
+
+    if checks and not printers:
+        return JsonResponse({"error": "Для данного заказа уже созданы чеки"}, status=400)
+
+    if printers:
+        for p in local_printers:
+            new_check = Check(printer_id=p, ctype=p.check_ctype, order=order)
+            new_check.save()
+        check_list = Check.objects.all()
+
+        for c in check_list:
+            django_rq.enqueue(pdf_worker, c)
+        
+        if check_list:
+            return JsonResponse({"ok": "Чеки успешно созданы"}, status=200)
+
+    return JsonResponse({"error": "Неизвестная ошибка"}), status=500
         
 def take_available_checks(api_key):
     #получаем принтеры по ключу
@@ -25,7 +41,6 @@ def take_available_checks(api_key):
     return ab_checks
     
 def take_pdf(api_key, check_id):
-    #принтеры по ключу
     printer_id = Printer.objects.filter(api_key=api_key)[0].id
     check = Check.objects.get(printer_id=printer_id, pk=check_id)
     pdf = open(check.pdf_file.path, 'rb')
