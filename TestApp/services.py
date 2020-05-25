@@ -29,7 +29,7 @@ def take_pdf(api_key, check_id):
     check = Check.objects.get(printer_id=printer_id, pk=check_id)
     pdf = open(check.pdf_file.path, 'rb')
     content_type = 'application/pdf'
-    response = HttpResponse(FileWrapper(pdf, content_type=content_type))
+    response = HttpResponse(FileWrapper(pdf), content_type=content_type)
     response['Content-Disposition'] = 'attachment; filename=%s' % check.pdf_file.name
     return response
     
