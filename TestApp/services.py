@@ -2,7 +2,7 @@ import json
 import django_rq
 from .models import Printer, Check
 from django.http import HttpResponse
-from django.core.servers.basehttp import FileWrapper
+from wsgiref.util import FileWrapper
 
 
 def create_checks(order):
