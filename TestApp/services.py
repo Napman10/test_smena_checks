@@ -8,35 +8,47 @@ import base64
 from django.template.loader import render_to_string
 
 def create_checks(order):
+    #comm1.1 сервис получает информацию о новом заказе
     order = json.loads(order)
     local_printers = Printer.objects.filter(point_id=order['point_id'])
+    #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
     if not local_printers:
         return JsonResponse({"error":"Для данной точки не настроено ни одного принтера"}, status=400)
-    checks = Check.objects.filter(printer_id__in=local_printers.values('pk'), order=order)
-    printers = local_printers.exclude(pk__in=checks.values('printer_id__pk'))
-    if checks and not printers:
+    #comm1.5 Если чеки для данного заказа уже были созданы - возвращает ошибку.
+    existing_checks = Check.objects.filter(order=order)
+    if existing_checks:
         return JsonResponse({"error": "Для данного заказа уже созданы чеки"}, status=400)
-    if printers:
-        for p in local_printers:
-            new_check = Check(printer_id=p, ctype=p.check_ctype, order=order)
-            new_check.save()
-        check_list = Check.objects.all()
-        for c in check_list:
-            django_rq.enqueue(pdf_worker, c)       
-        if check_list:
-            return JsonResponse({"ok": "Чеки успешно созданы"}, status=200)
+    new_checks = list()
+    #comm1.2 создаёт в БД чеки для всех принтеров точки указанной в заказе
+    for printer in local_printers:
+        new_check = Check(printer_id=printer, ctype=printer.check_ctype, order=order, status="new")
+        new_check.save() # ERP->API->БД
+        new_checks.append(new_check)
+    #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
+    for check in new_checks:
+        django_rq.enqueue(wkhtmltopdf, check)   #ERP->API->Worker->БД  
+    if new_checks:
+        return JsonResponse({"ok": "Чеки успешно созданы"}, status=200)
     return JsonResponse({"error": "Неизвестная ошибка"}, status=500)
-        
-def rendered_checks(api_key):
+
+#comm3.1
+#Приложение опрашивает сервис на наличие новых чеков.
+# ~~Опрос происходит по следующему пути: 
+def new_checks(api_key):
     try:
-        printer_id = Printer.objects.filter(api_key=api_key)[0].id
-        ab_checks = Check.objects.filter(printer_id=printer_id, status='rendered')
-        return JsonResponse({'checks': list(ab_checks)}, status=200)
+        printer_id = Printer.objects.filter(api_key=api_key)[0].id #конкретный принтер
+        #comm3.2 сначала запрашивается список чеков которые уже сгенерированы для конкретного принтера
+        checks = Check.objects.filter(printer_id=printer_id, status='rendered')
+        #comm3.3 после скачивается PDF-файл для каждого чека и отправляется на печать. (???????, не факт что правильно)
+        #здесь нужно лаконично поменять таким чекам статус rendered->printed
+        return JsonResponse({'checks': list(checks)}, status=200)
     except IndexError:
         return JsonResponse({"error": "Ошибка авторизации"}, status=401)
     except:
         return JsonResponse({"error": "Неизвестная ошибка"}, status=500)
-    
+
+#отдает сгенерированный pdf для отдельного чека по апи принтера и ID чека
+# в т.н. comms не входит, функция по специф
 def take_pdf(api_key, check_id):
     try:
         printer_id = Printer.objects.filter(api_key=api_key)[0].id
@@ -54,11 +66,10 @@ def take_pdf(api_key, check_id):
     except:
         return JsonResponse({"error": "Неизвестная ошибка"}, status=500)
     
-def pdf_worker(check_id):
-    #получить чек
+def wkhtmltopdf(check_id):
     page = None
     check = Check.objects.get(pk=check_id)
-    #обработать для двух разных случаев
+    #comm2.1 Асинхронный воркер с помощью wkhtmltopdf генерируют PDF-файл из HTML-шаблон
     if check.ctype == "client":
         context = dict()
         page = render_to_string("client_check.html", context)
@@ -67,7 +78,8 @@ def pdf_worker(check_id):
         page = render_to_string("kitchen_check.html", context)
     b = page.encode("utf-8")
     converted_html = base64.b64encode(b)
-    url = 'http://127.0.0.1:80/'
+    #код из dockerhub для wkhtmltopdf
+    url = 'http://127.0.0.1:80/' #http://<docker_host>:<contaimer_port>/
     data = {
         'contents': converted_html, #здесь должен быть пережитый обработку html
     }
@@ -75,7 +87,10 @@ def pdf_worker(check_id):
         'Content-Type': 'application/json',    # This is important ===> не менять
     }
     response = requests.post(url, data=json.dumps(data), headers=headers)
+    #comm2.2 Имя файла должно иметь следущий вид <ID заказа>_<тип чека>.pdf (123456_client.pdf)
+    #comm2.3 в модели чека
     file_name = "{0}_{1}.pdf".format(check.order["id"], check.type)
     check.pdf_file.save(file_name, response.content, True)
+    check.status = 'rendered'
     check.save()
     

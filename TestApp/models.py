@@ -25,6 +25,7 @@ class Check(models.Model):
     ctype = models.CharField(max_length=10, choices=CHECK_TYPES)
     order = JSONField()
     status = models.CharField(max_length=10, choices=ORDER_STATUSES)
+    #comm2.3 Файлы должны хранится в папке media/pdf в корне проекта.
     pdf_file = models.FileField(upload_to='pdf/')
     
 

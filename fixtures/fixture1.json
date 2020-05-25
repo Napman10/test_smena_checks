@@ -1,0 +1,82 @@
+[
+    {
+      "model": "TestApp.printer",
+      "pk": 1,
+      "fields": {
+        "name": "Printer 1",
+        "api_key": "voeo3-efoow-009",
+        "check_type": "client",
+        "point_id": 1
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 2,
+      "fields": {
+        "name": "Printer 2",
+        "api_key": "wro23r-2reo4-ol4",
+        "check_type": "kitchen",
+        "point_id": 1
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 3,
+      "fields": {
+        "name": "Printer 3",
+        "api_key": "ieoog-7gl3a-oj4",
+        "check_type": "client",
+        "point_id": 2
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 4,
+      "fields": {
+        "name": "Printer 4",
+        "api_key": "eohkw-eoh-39t",
+        "check_type": "kitchen",
+        "point_id": 2
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 5,
+      "fields": {
+        "name": "Printer 5",
+        "api_key": "vo2o3-efoow-009",
+        "check_type": "client",
+        "point_id": 3
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 6,
+      "fields": {
+        "name": "Printer 6",
+        "api_key": "wro23r-2reo4-ol4",
+        "check_type": "kitchen",
+        "point_id": 3
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 7,
+      "fields": {
+        "name": "Printer 7",
+        "api_key": "ie2og-7gl3a-oj4",
+        "check_type": "client",
+        "point_id": 4
+      }
+    },
+    {
+      "model": "TestApp.printer",
+      "pk": 8,
+      "fields": {
+        "name": "Printer 8",
+        "api_key": "eo2kw-eoh-39t",
+        "check_type": "kitchen",
+        "point_id": 4
+      }
+    }
+]
