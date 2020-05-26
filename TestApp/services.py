@@ -11,7 +11,6 @@ from django.core.files.base import ContentFile
 def create_checks(order):
     #comm1.1 сервис получает информацию о новом заказе
     order = json.loads(order)
-
     local_printers = Printer.objects.filter(point_id=order['point_id'])
     #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
     if not local_printers:
@@ -41,7 +40,7 @@ def new_checks(api_key):
     try:
         printer_id = Printer.objects.filter(api_key=api_key)[0].id #конкретный принтер
         #comm3.2 сначала запрашивается список чеков которые уже сгенерированы для конкретного принтера
-        checks = Check.objects.filter(printer_id=printer_id, status='rendered')
+        checks = Check.objects.filter(printer_id=printer_id, status='rendered').values('id')
         #comm3.3 после скачивается PDF-файл для каждого чека и отправляется на печать. (???????, не факт что правильно)
         #здесь нужно лаконично поменять таким чекам статус rendered->printed
         return JsonResponse({'checks': list(checks)}, status=200)
