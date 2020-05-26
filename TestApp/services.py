@@ -11,6 +11,7 @@ from django.core.files.base import ContentFile
 def create_checks(order):
     #comm1.1 сервис получает информацию о новом заказе
     order = json.loads(order)
+
     local_printers = Printer.objects.filter(point_id=order['point_id'])
     #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
     if not local_printers:
@@ -28,7 +29,6 @@ def create_checks(order):
     #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
     wkhtmltopdf(new_checks[0].id)
     for check in new_checks:
-        print(check)
         django_rq.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
     if new_checks:
         return JsonResponse({"ok": 'Чеки успешно созданы'}, status=200)
@@ -70,7 +70,6 @@ def take_pdf(api_key, check_id):
         return JsonResponse({"error": "Неизвестная ошибка"}, status=500)
 
 def wkhtmltopdf(check_id):
-    print("Here")
     page = None
     check = Check.objects.get(pk=check_id)
     if check.ctype == 'client':
