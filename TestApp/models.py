@@ -21,6 +21,9 @@ class Printer(models.Model):
     check_type = models.CharField(max_length=10, choices=CHECK_TYPES, null=False)
     point_id = models.IntegerField(null=False)
     
+    def __str__(self):
+        return self.name
+    
 class Check(models.Model):
     objects = models.Manager()
     printer_id = models.ForeignKey(Printer)
