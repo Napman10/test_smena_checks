@@ -26,9 +26,9 @@ def create_checks(order):
         new_check.save() # ERP->API->БД
         new_checks.append(new_check)
     #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
-    #wkhtmltopdf(new_checks[0].id)
     for check in new_checks:
-        django_rq.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
+        #django_rq.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
+        wkhtmltopdf(check.id)
     if new_checks:
         return JsonResponse({"ok": 'Чеки успешно созданы'}, status=200)
     return JsonResponse({"error 500": "Неизвестная ошибка"}, status=500)
@@ -45,7 +45,7 @@ def new_checks(api_key):
         #comm3.2 сначала запрашивается список чеков которые уже сгенерированы для конкретного принтера
         checks = Check.objects.filter(printer_id=printer_id, status='rendered')
         #comm3.3 после скачивается PDF-файл для каждого чека и отправляется на печать. (???????, не факт что правильно)
-        checks_values = checks.values('id')
+        checks_values = checks.values('pk')
         #здесь нужно лаконично поменять таким чекам статус rendered->printed
         checks.update(status='printed')
         return JsonResponse({'checks': list(checks_values)}, status=200)
@@ -54,6 +54,7 @@ def new_checks(api_key):
 
 #отдает сгенерированный pdf для отдельного чека по апи принтера и ID чека
 # в т.н. comms не входит, функция по специф
+#работает
 def take_pdf(api_key, check_id):
     try:
         try:
@@ -61,6 +62,7 @@ def take_pdf(api_key, check_id):
         except IndexError:
             return JsonResponse({"error 401": "Ошибка авторизации"}, status=401)
         check = Check.objects.get(printer_id=printer_id, pk=check_id)
+        print(check.id)
         if check.pdf_file:
             pdf = open(check.pdf_file.path, 'rb')
             content_type = 'application/pdf'
