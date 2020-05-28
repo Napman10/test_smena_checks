@@ -13,9 +13,9 @@ from datetime import datetime
 
 def create_checks(request):
     #comm1.1 сервис получает информацию о новом заказе
-    data = request.body
-    order = json.loads(data)
-
+    #data = request.body
+    #order = json.loads(data)
+    order = json.loads(open("ord.json", "rb").read())
     local_printers = Printer.objects.filter(point_id=order['point_id'])
     #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
     if not local_printers:
