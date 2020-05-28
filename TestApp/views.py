@@ -1,6 +1,8 @@
 #from django.shortcuts import render #нет необходимости в этом стандартном импорте
 from . import services
+
 # Create your views here.
+
 def create_checks(request):
     response = services.create_checks(request)
     return response
