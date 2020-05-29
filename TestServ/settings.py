@@ -24,7 +24,7 @@ SECRET_KEY = '7!o^()#(l%f^ggemx5hk920=wjbr1*v%934z$j@h$=v+0v*y98'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['kubernetes.docker.internal', 'localhost']
 
 
 # Application definition

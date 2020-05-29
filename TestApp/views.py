@@ -1,8 +1,8 @@
 #from django.shortcuts import render #нет необходимости в этом стандартном импорте
 from . import services
-
+from django.views.decorators.csrf import csrf_exempt
 # Create your views here.
-
+@csrf_exempt
 def create_checks(request):
     response = services.create_checks(request)
     return response

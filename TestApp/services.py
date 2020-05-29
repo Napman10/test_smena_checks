@@ -7,15 +7,14 @@ import requests
 import base64
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
-from django.views.decorators.csrf import csrf_exempt
-from datetime import datetime
-
+#from django.core import serializers
 
 def create_checks(request):
     #comm1.1 сервис получает информацию о новом заказе
-    #data = request.body
-    #order = json.loads(data)
-    order = json.loads(open("ord.json", "rb").read())
+    try:
+        order = json.loads(request.body.decode("utf-8"))
+    except TypeError:
+        raise Exception("Failed to fetch")
     local_printers = Printer.objects.filter(point_id=order['point_id'])
     #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
     if not local_printers:
@@ -59,19 +58,16 @@ def new_checks(api_key):
 
 #отдает сгенерированный pdf для отдельного чека по апи принтера и ID чека
 # в т.н. comms не входит, функция по специф
-#работает
 def take_pdf(api_key, check_id):
     try:
         try:
             printer_id = Printer.objects.get(api_key=api_key).id
-        except IndexError:
+        except:
             return jsonResponse({"error 401": "Ошибка авторизации"} )
         check = Check.objects.get(printer_id=printer_id, pk=check_id)
-        print(check.id)
         if check.pdf_file:
             pdf = open(check.pdf_file.path, 'rb')
-            content_type = 'application/pdf'
-            response = HttpResponse(FileWrapper(pdf), content_type=content_type)
+            response = HttpResponse(FileWrapper(pdf), content_type='application/pdf')
             response['Content-Disposition'] = 'attachment; filename={0}'.format(check.pdf_file.name)
             return response
         else:
@@ -80,7 +76,6 @@ def take_pdf(api_key, check_id):
         return jsonResponse({"error 500": "Неизвестная ошибка"} )
 
 def wkhtmltopdf(check_id):
-    print("HERE")
     check = Check.objects.get(pk=check_id)
     if check.ctype == 'client':
         page = render_to_string('client_check.html', {
