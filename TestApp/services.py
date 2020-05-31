@@ -7,36 +7,45 @@ import requests
 import base64
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
-#from django.core import serializers
+from django_rq import job
 
 def create_checks(request):
     #comm1.1 сервис получает информацию о новом заказе
     try:
-        order = json.loads(request.body.decode("utf-8"))
-    except TypeError:
-        raise Exception("Failed to fetch")
-    local_printers = Printer.objects.filter(point_id=order['point_id'])
-    #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
-    if not local_printers:
-        return jsonResponse({"error 400":"Для данной точки не настроено ни одного принтера"})
-    #comm1.5 Если чеки для данного заказа уже были созданы - возвращает ошибку.
-    existing_checks = Check.objects.filter(order=order)
-    if existing_checks:
-        return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
-    new_checks = list()
-    #comm1.2 создаёт в БД чеки для всех принтеров точки указанной в заказе
-    for printer in local_printers:
-        new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
-        new_check.save() # ERP->API->БД
-        new_checks.append(new_check)
-    #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
-    queue = django_rq.get_queue('default', autocommit=True, is_async=True, default_timeout=360)
-    for check in new_checks:
-        queue.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
-        #wkhtmltopdf(check.id) #не асихнронная версия
-    if new_checks:
-        return jsonResponse({"ok":"Чеки успешно созданы"})
-    return jsonResponse({"error 500": "Неизвестная ошибка"})
+        try:
+            order = json.loads(request.body.decode("utf-8"))
+        except TypeError:
+            raise Exception("Failed to fetch")
+        local_printers = Printer.objects.filter(point_id=order['point_id'])
+        #comm1.4 Если у точки нет ни одного принтера - возвращает ошибку.
+        if not local_printers:
+            return jsonResponse({"error 400":"Для данной точки не настроено ни одного принтера"})
+        #comm1.5 Если чеки для данного заказа уже были созданы - возвращает ошибку.
+        existing_checks = Check.objects.filter(order=order)
+        if existing_checks:
+            return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
+        new_checks = list()
+        #comm1.2 создаёт в БД чеки для всех принтеров точки указанной в заказе
+        for printer in local_printers:
+            new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
+            new_check.save() # ERP->API->БД
+            new_checks.append(new_check)
+        #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
+        queue = django_rq.get_queue('default', autocommit=True, is_async=True, default_timeout=360)
+        for check in new_checks:
+            queue.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
+        jobs = queue.get_jobs()
+        for job in jobs:
+            queue.remove(job)
+            job.perform()
+        jobs = queue.get_jobs()
+        # check no jobs left in queue
+        assert not jobs
+
+        if new_checks:
+            return jsonResponse({"ok":"Чеки успешно созданы"})
+    except:
+        return jsonResponse({"error 500": "Неизвестная ошибка"})
 
 #comm3.1
 #Приложение опрашивает сервис на наличие новых чеков.
@@ -50,9 +59,9 @@ def new_checks(api_key):
         #comm3.2 сначала запрашивается список чеков которые уже сгенерированы для конкретного принтера
         checks = Check.objects.filter(printer_id=printer_id, status='rendered')
         #comm3.3 после скачивается PDF-файл для каждого чека и отправляется на печать.
-        checks_values = checks.values('pk')
+        checks_values = list(checks.values('id'))
         checks.update(status='printed')
-        return jsonResponse({'checks': list(checks_values)} )
+        return jsonResponse({'checks': checks_values} )
     except:
         return jsonResponse({"error 500": "Неизвестная ошибка"} )
 
@@ -75,31 +84,26 @@ def take_pdf(api_key, check_id):
     except:
         return jsonResponse({"error 500": "Неизвестная ошибка"} )
 
+@job
 def wkhtmltopdf(check_id):
     check = Check.objects.get(pk=check_id)
+    order_dict = {
+            'items': check.order['items'],
+            'address': check.order['address'],
+            'order_id': check.order['id'],
+            'price': check.order['price']
+        }  
     if check.ctype == 'client':
-        page = render_to_string('client_check.html', {
-            'items': check.order['items'],
-            'client': check.order['client'],
-            'address': check.order['address'],
-            'order_id': check.order['id'],
-            'price': check.order['price']
-        })
+        page_string_in = render_to_string('client_check.html', {**order_dict, 'client':check.order['client']})
     elif check.ctype == 'kitchen':
-        page = render_to_string('kitchen_check.html', {
-            'items': check.order['items'],
-            'address': check.order['address'],
-            'order_id': check.order['id'],
-            'price': check.order['price']
-        })
-    else:
-        return jsonResponse({"error 500": "Неизвестная ошибка"} )
-    b = base64.b64encode(bytes(page, 'utf-8'))
-    data_contents = b.decode('utf-8')
+        page_string_in = render_to_string('kitchen_check.html', order_dict)
+
+    page_bytes = base64.b64encode(bytes(page_string_in, 'utf-8'))
+    page_string_out = page_bytes.decode('utf-8')
     #comm2.1 Асинхронный воркер с помощью wkhtmltopdf генерируют PDF-файл из HTML-шаблон
     url = 'http://127.0.0.1:80/' #http://<docker_host>:<contaimer_port>/
     data = {
-        'contents': data_contents
+        'contents': page_string_out
     }
     headers = {
         'Content-Type': 'application/json',    # This is important ===> не менять
