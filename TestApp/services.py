@@ -1,5 +1,5 @@
+# -*- coding: utf-8 -*-
 import json
-import django_rq
 from .models import Printer, Check
 from django.http import HttpResponse, JsonResponse
 from wsgiref.util import FileWrapper
@@ -7,7 +7,7 @@ import requests
 import base64
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
-from django_rq import job
+from django_rq import job, get_queue
 
 def create_checks(request):
     #comm1.1 сервис получает информацию о новом заказе
@@ -24,26 +24,24 @@ def create_checks(request):
         existing_checks = Check.objects.filter(order=order)
         if existing_checks:
             return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
-        new_checks = list()
         #comm1.2 создаёт в БД чеки для всех принтеров точки указанной в заказе
         for printer in local_printers:
             new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
             new_check.save() # ERP->API->БД
-            new_checks.append(new_check)
+        new_checks = Check.objects.filter(order=order)
         #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
-        queue = django_rq.get_queue('default', autocommit=True, is_async=True, default_timeout=360)
+        queue = get_queue('default', autocommit=True, is_async=True, default_timeout=360)
         for check in new_checks:
             queue.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
-        jobs = queue.get_jobs()
-        for job in jobs:
-            queue.remove(job)
-            job.perform()
-        jobs = queue.get_jobs()
+        #jobs = queue.get_jobs()
+        #for job in jobs:
+        #    queue.remove(job)
+        #    job.perform()
+        #jobs = queue.get_jobs()
         # check no jobs left in queue
-        assert not jobs
+        #assert not jobs
 
-        if new_checks:
-            return jsonResponse({"ok":"Чеки успешно созданы"})
+        return jsonResponse({"ok":"Чеки успешно созданы"})
     except:
         return jsonResponse({"error 500": "Неизвестная ошибка"})
 
