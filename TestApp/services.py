@@ -54,8 +54,9 @@ def check(api_key, check_id):
         check = Check.objects.get(printer_id=printer_id, pk=check_id)
         if check.pdf_file:           
             pdf = open(check.pdf_file.path, 'rb')
-            response = HttpResponse(FileWrapper(pdf), content_type='application/pdf')
-            response['Content-Disposition'] = 'attachment; filename={0}'.format(check.pdf_file.name)
+            disp = 'attachment; filename={0}'.format(check.pdf_file.name)
+            response = HttpResponse(FileWrapper(pdf),
+             content_type='application/pdf', content_disposition=disp)
             check.status = 'printed'
             check.save()
             return response
