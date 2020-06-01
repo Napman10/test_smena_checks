@@ -37,7 +37,7 @@ def new_checks(api_key):
     try:
         try:
             printer_id = Printer.objects.get(api_key=api_key).id 
-        except TypeError:
+        except:
             return jsonResponse({"error 401": "Ошибка авторизации"})
         checks = Check.objects.filter(printer_id=printer_id, status='rendered')
         checks_values = list(checks.values('id'))
@@ -49,7 +49,7 @@ def check(api_key, check_id):
     try:
         try:
             printer_id = Printer.objects.get(api_key=api_key).id
-        except TypeError:
+        except:
             return jsonResponse({"error 401": "Ошибка авторизации"} )
         check = Check.objects.get(printer_id=printer_id, pk=check_id)
         if check.pdf_file:           
