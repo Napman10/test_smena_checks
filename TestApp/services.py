@@ -13,10 +13,10 @@ def jsonResponse(data):
     return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
 
 #декоратор для обработки 500 error
-def processing500(func):
+def processing500(func, *args, **kwargs):
     def wrapper():
         try:
-            func()
+            func(*args, **kwargs)
         except:
             return jsonResponse({"error 500": "Неизвестная ошибка"})
     return wrapper
