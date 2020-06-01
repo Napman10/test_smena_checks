@@ -52,13 +52,16 @@ def check(api_key, check_id):
         except TypeError:
             return jsonResponse({"error 401": "Ошибка авторизации"} )
         check = Check.objects.get(printer_id=printer_id, pk=check_id)
-        if check.pdf_file:
+        if check.pdf_file:           
             pdf = open(check.pdf_file.path, 'rb')
+            print("opened")
             disposition = 'attachment; filename={0}'.format(check.pdf_file.name)
+            print("disp")
             response = HttpResponse(FileWrapper(pdf),
                 content_type='application/pdf', 
                 content_disposition=disposition)
             check.update(status="printed")
+            print("resp")
             return response
         else:
             return jsonResponse({'error 400': "Для данного чека не сгенерирован PDF-файл"})
