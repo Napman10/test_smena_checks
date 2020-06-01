@@ -12,55 +12,60 @@ from django_rq import job, get_queue
 def jsonResponse(data):
     return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
 
-def create_checks(request):
-    try:
-        order = json.loads(request.body.decode("utf-8"))
-        local_printers = Printer.objects.filter(point_id=order['point_id'])
-        if not local_printers:
-            return jsonResponse({"error 400":"Для данной точки не настроено ни одного принтера"})
-        existing_checks = Check.objects.filter(order=order)
-        if existing_checks:
-            return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
-        for printer in local_printers:
-            new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
-            new_check.save() 
-        new_checks = Check.objects.filter(order=order)
-        queue = get_queue('default', autocommit=True, is_async=True, default_timeout=360)
-        for check in new_checks:
-            queue.enqueue(wkhtmltopdf, check_id=check.id)
-        return jsonResponse({"ok":"Чеки успешно созданы"})
-    except:
-        return jsonResponse({"error 500": "Неизвестная ошибка"})
+#декоратор для обработки 500 error
+def processing500(func):
+    def wrapper():
+        try:
+            func()
+        except:
+            return jsonResponse({"error 500": "Неизвестная ошибка"})
+    return wrapper
 
+@processing500
+def create_checks(request):
+    order = json.loads(request.body.decode("utf-8"))
+    local_printers = Printer.objects.filter(point_id=order['point_id'])
+    if not local_printers:
+        return jsonResponse({"error 400":"Для данной точки не настроено ни одного принтера"})
+    existing_checks = Check.objects.filter(order=order)
+    if existing_checks:
+        return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
+    for printer in local_printers:
+        new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
+        new_check.save() 
+    new_checks = Check.objects.filter(order=order)
+    queue = get_queue('default', autocommit=True, is_async=True, default_timeout=360)
+    for check in new_checks:
+        queue.enqueue(wkhtmltopdf, check_id=check.id)
+    return jsonResponse({"ok":"Чеки успешно созданы"})
+
+@processing500
 def new_checks(api_key):
     try:
-        try:
-            printer_id = Printer.objects.get(api_key=api_key).id 
-        except:
-            return jsonResponse({"error 401": "Ошибка авторизации"})
-        checks = Check.objects.filter(printer_id=printer_id, status='rendered')
-        checks_values = list(checks.values('id'))
-        checks.update(status='printed')
-        return jsonResponse({'checks': checks_values} )
-    except:
-        return jsonResponse({"error 500": "Неизвестная ошибка"} )
+        printer_id = Printer.objects.get(api_key=api_key).id 
+    except TypeError:
+        return jsonResponse({"error 401": "Ошибка авторизации"})
+    checks = Check.objects.filter(printer_id=printer_id, status='rendered')
+    checks_values = list(checks.values('id'))
+    return jsonResponse({'checks': checks_values} )
 
+@processing500
 def check(api_key, check_id):
     try:
-        try:
-            printer_id = Printer.objects.get(api_key=api_key).id
-        except:
-            return jsonResponse({"error 401": "Ошибка авторизации"} )
-        check = Check.objects.get(printer_id=printer_id, pk=check_id)
-        if check.pdf_file:
-            pdf = open(check.pdf_file.path, 'rb')
-            response = HttpResponse(FileWrapper(pdf), content_type='application/pdf')
-            response['Content-Disposition'] = 'attachment; filename={0}'.format(check.pdf_file.name)
-            return response
-        else:
-            return jsonResponse({'error 400': "Для данного чека не сгенерирован PDF-файл"})
-    except:
-        return jsonResponse({"error 500": "Неизвестная ошибка"} )
+        printer_id = Printer.objects.get(api_key=api_key).id
+    except TypeError:
+        return jsonResponse({"error 401": "Ошибка авторизации"} )
+    check = Check.objects.get(printer_id=printer_id, pk=check_id)
+    if check.pdf_file:
+        pdf = open(check.pdf_file.path, 'rb')
+        disposition = 'attachment; filename={0}'.format(check.pdf_file.name)
+        response = HttpResponse(FileWrapper(pdf),
+            content_type='application/pdf', 
+            content_disposition=disposition)
+        check.update(status="printed")
+        return response
+    else:
+        return jsonResponse({'error 400': "Для данного чека не сгенерирован PDF-файл"})
 
 @job
 def wkhtmltopdf(check_id):
