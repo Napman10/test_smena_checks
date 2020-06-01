@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import json
 from .models import Printer, Check
 from django.http import HttpResponse, JsonResponse
@@ -30,8 +29,9 @@ def create_checks(request):
             new_check.save() # ERP->API->БД
         new_checks = Check.objects.filter(order=order)
         #comm1.3 ставит асинхронные задачи на генерацию PDF-файлов для этих чеков
+        queue = get_queue('default', autocommit=True, is_async=True, default_timeout=360)
         for check in new_checks:
-            django_rq.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
+            queue.enqueue(wkhtmltopdf, check_id=check.id)   #ERP->API->Worker->БД
 
         return jsonResponse({"ok":"Чеки успешно созданы"})
     except:
