@@ -30,7 +30,6 @@ class Check(models.Model):
     ctype = models.CharField(max_length=10, choices=CHECK_TYPES, null=False)
     order = JSONField()
     status = models.CharField(max_length=10, choices=ORDER_STATUSES, null=False)
-    #comm2.3 Файлы должны храниться в папке media/pdf в корне проекта.
     pdf_file = models.FileField(upload_to='pdf/')
 
 @receiver(post_delete, sender=Check)
@@ -38,5 +37,3 @@ def myfield_delete(sender, instance, **kwargs):
     if instance.pdf_file:
         instance.pdf_file.delete(False)
 
-
-# Create your models here.

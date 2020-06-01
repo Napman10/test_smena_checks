@@ -1,7 +1,6 @@
-#from django.shortcuts import render #нет необходимости в этом стандартном импорте
 from . import services
 from django.views.decorators.csrf import csrf_exempt
-# Create your views here.
+
 @csrf_exempt
 def create_checks(request):
     response = services.create_checks(request)
@@ -15,5 +14,5 @@ def new_checks(request):
 def check(request):
     api_key = request.GET.get('api_key','')
     check_id = request.GET.get('check_id', '')
-    response = services.take_pdf(api_key, check_id)
+    response = services.check(api_key, check_id)
     return response
