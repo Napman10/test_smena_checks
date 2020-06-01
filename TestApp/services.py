@@ -56,7 +56,8 @@ def check(api_key, check_id):
             pdf = open(check.pdf_file.path, 'rb')
             response = HttpResponse(FileWrapper(pdf), content_type='application/pdf')
             response['Content-Disposition'] = 'attachment; filename={0}'.format(check.pdf_file.name)
-            check.update(status="printed")
+            check.status = 'printed'
+            check.save()
             return response
         else:
             return jsonResponse({'error 400': "Для данного чека не сгенерирован PDF-файл"})
