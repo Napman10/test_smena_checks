@@ -3,7 +3,7 @@ from .models import Printer, Check
 from django.http import HttpResponse, JsonResponse
 from wsgiref.util import FileWrapper
 import requests
-import base64
+from base64 import b64encode
 from django.template.loader import render_to_string
 from django.core.files.base import ContentFile
 from django_rq import job, get_queue
@@ -96,7 +96,7 @@ def wkhtmltopdf(check_id):
     elif check.ctype == 'kitchen':
         page_string_in = render_to_string('kitchen_check.html', order_dict)
 
-    page_bytes = base64.b64encode(bytes(page_string_in, 'utf-8'))
+    page_bytes = b64encode(bytes(page_string_in, 'utf-8'))
     page_string_out = page_bytes.decode('utf-8')
 
     url = 'http://127.0.0.1:80/'
