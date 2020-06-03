@@ -4,8 +4,7 @@
 **Примечания**
 1. Для работы воркера потребуется Linux (Ubuntu) или как минимум подсистема внутри Windows.
 2. Для получения нужных пакетов ввести из корня проекта в командной строке *pip install -r requirements.txt* для Windows или *pip3 install -r requirements.txt* для Linux
-3. Для работы воркера потребуется Linux (Ubuntu) или как минимум подсистема внутри Windows.
-4. Чтобы попасть в корень проекта из подсистемы Linux ввести *cd /mnt/PROJECT_PATH*, где PROJECT_PATH - путь к проекту
+3. Чтобы попасть в корень проекта из подсистемы Linux ввести *cd /mnt/PROJECT_PATH*, где PROJECT_PATH - путь к проекту
 
 
 **Запуск**
