@@ -9,8 +9,8 @@ from django.core.files.base import ContentFile
 from django_rq import job, get_queue
 from django.core.exceptions import ObjectDoesNotExist
 #решает проблему с кириллицей в JsonResponse
-def jsonResponse(data):
-    return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False})
+def jsonResponse(data, status):
+    return JsonResponse(data, safe=False, json_dumps_params={'ensure_ascii': False}, status=status)
 
 def create_checks(request):
     try:
@@ -18,11 +18,11 @@ def create_checks(request):
         local_printers = Printer.objects.filter(point_id=order['point_id'])
 
         if not local_printers:
-            return jsonResponse({"error 400":"Для данной точки не настроено ни одного принтера"})
+            return jsonResponse({"error":"Для данной точки не настроено ни одного принтера"}, 400)
 
         existing_checks = Check.objects.filter(order=order)
         if existing_checks:
-            return jsonResponse({"error 400": "Для данного заказа уже созданы чеки"})
+            return jsonResponse({"error": "Для данного заказа уже созданы чеки"}, 400)
 
         for printer in local_printers:
             new_check = Check(printer_id=printer, ctype=printer.check_type, order=order, status="new")
@@ -34,10 +34,10 @@ def create_checks(request):
         for check in new_checks:
             queue.enqueue(wkhtmltopdf, check_id=check.id)
 
-        return jsonResponse({"ok":"Чеки успешно созданы"})
+        return jsonResponse({"ok":"Чеки успешно созданы"}, 200)
 
     except:
-        return jsonResponse({"error 500":"Неизвестная ошибка"})
+        return jsonResponse({"error":"Неизвестная ошибка"}, 500)
 
 
 def new_checks(api_key):
@@ -47,13 +47,13 @@ def new_checks(api_key):
 
         checks_values = list(checks.values('id'))
 
-        return jsonResponse({'checks': checks_values} )
+        return jsonResponse({'checks': checks_values}, 200 )
 
     except ObjectDoesNotExist:
-        return jsonResponse({"error 401": "Ошибка авторизации"})
+        return jsonResponse({"error": "Ошибка авторизации"}, 401)
 
     except:
-        return jsonResponse({"error 500":"Неизвестная ошибка"})
+        return jsonResponse({"error":"Неизвестная ошибка"}, 500)
 
 def check(api_key, check_id):
     try:
@@ -72,13 +72,13 @@ def check(api_key, check_id):
             return response
 
         else:
-            return jsonResponse({'error 400': "Для данного чека не сгенерирован PDF-файл"})      
+            return jsonResponse({'error': "Для данного чека не сгенерирован PDF-файл"}, 400)      
 
     except ObjectDoesNotExist:
-            return jsonResponse({"error 401": "Ошибка авторизации"} )
+            return jsonResponse({"error": "Ошибка авторизации"}, 401 )
 
     except:
-        return jsonResponse({"error 500":"Неизвестная ошибка"})
+        return jsonResponse({"error":"Неизвестная ошибка"}, 500)
 
 @job
 def wkhtmltopdf(check_id):
